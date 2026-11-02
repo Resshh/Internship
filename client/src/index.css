@@ -8,3 +8,95 @@ nav a.active { background: #eee; font-weight: 600; }
 main { grid-area: m; padding: 16px 24px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+
+
+/* Recipient  */
+
+.recipients-page {
+  max-width: 1200px;
+}
+
+.recipients-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.recipients-heading h2 {
+  margin: 0;
+}
+
+.recipients-page button,
+.recipients-page input,
+.recipients-page select {
+  font: inherit;
+}
+
+.recipients-page button {
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.recipients-table-wrap {
+  overflow-x: auto;
+}
+
+.recipients-table th {
+  background: #e8e8e8;
+}
+
+.recipients-expand {
+  border: 0;
+  background: transparent;
+}
+
+.recipients-secondary {
+  background: white;
+}
+
+.recipients-details {
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.recipients-add-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 100px auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.recipients-add-form input,
+.recipients-add-form select,
+.recipients-address-table select {
+  min-width: 0;
+  padding: 7px;
+}
+
+.recipients-address-table {
+  max-width: 700px;
+  margin-bottom: 12px;
+}
+
+.recipients-message {
+  padding: 8px 12px;
+}
+
+.recipients-error {
+  color: #a00000;
+  background: #fff0f0;
+}
+
+.recipients-success {
+  color: #176b2c;
+  background: #effaf1;
+}
+
+@media (max-width: 650px) {
+  .recipients-add-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Recipient */

@@ -1,0 +1,10 @@
+{
+  "columns": ["InvoiceNo", "CustomerName", "Email", "DaysOverdue", "Amount"],
+  "rows": [
+    ["INV-101", "ABC Traders", "abc@test.com", 10, 25000],
+    ["INV-102", "XYZ Stores", "xyz@test.com", 3, 8000],
+    ["INV-103", "Kerala Spices Co", "spices@test.com", 21, 41250],
+    ["INV-104", "Malabar Textiles", "malabar@test.com", 7, 12000],
+    ["INV-105", "Cochin Hardware", "", 15, 5600]
+  ]
+}

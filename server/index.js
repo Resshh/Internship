@@ -8,6 +8,9 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ ok: true, testMode: process.env.TEST_MODE === 'true' }));
 app.use('/api/auth', require('./routes/auth'));
+
+app.use('/api/recipient-lists', require('./routes/recipientLists'))
+
 // Add one line per route file as features land, e.g.:
 // app.use('/api/jobs', require('./routes/jobs'));
 

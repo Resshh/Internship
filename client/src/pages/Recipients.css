@@ -1,0 +1,59 @@
+/* Responsive */
+
+@media (max-width: 768px) {
+  .recipients-page {
+    padding: 16px;
+  }
+
+  .recipients-heading {
+    align-items: flex-start;
+  }
+
+  .recipients-heading h2 {
+    font-size: 23px;
+  }
+
+  .recipients-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recipients-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .recipients-heading {
+    flex-direction: column;
+  }
+
+  .recipients-heading .recipients-primary-btn {
+    width: 100%;
+  }
+
+  .recipients-modal-overlay {
+    padding: 10px;
+  }
+
+  .recipients-modal-header,
+  .recipients-form-body {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+
+  .recipients-modal-footer {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+
+  .recipients-email-input-row {
+    align-items: stretch;
+  }
+
+  .recipients-confirm-modal {
+    padding: 22px;
+  }
+}
+
+/* Recipient */

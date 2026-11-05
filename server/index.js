@@ -10,6 +10,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, testMode: process.env.
 app.use('/api/auth', require('./routes/auth'));
 // Add one line per route file as features land, e.g.:
 // app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/templates', require('./routes/TemplateRoutes'));
 
 // Any error thrown in a route ends up here. Log it on the server, send a safe message to the browser.
 app.use((err, req, res, next) => {

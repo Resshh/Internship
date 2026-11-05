@@ -10,6 +10,6 @@ export async function api(path, { method = 'GET', body } = {}) {
     body: body && JSON.stringify(body),
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || res.statusText)
+  if (!res.ok) throw new Error(data.error || data.message || res.statusText)
   return data
 }

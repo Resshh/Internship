@@ -1,0 +1,8 @@
+{
+  "columns": ["ItemCode", "ItemName", "Warehouse", "Quantity", "ReorderLevel", "Shortfall", "StoreEmail"],
+  "rows": [
+    ["ITM-01", "Black Pepper 1kg", "Kochi", 12, 50, 38, "kochi.store@test.com"],
+    ["ITM-02", "Tea Powder 500g", "Kochi", 200, 100, -100, "kochi.store@test.com"],
+    ["ITM-03", "Coconut Oil 1L", "Trivandrum", 5, 40, 35, "tvm.store@test.com"]
+  ]
+}

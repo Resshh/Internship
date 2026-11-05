@@ -1,0 +1,8 @@
+{
+  "columns": ["CustomerName", "Current", "Days1to30", "Days31to60", "Over60", "Total"],
+  "rows": [
+    ["ABC Traders", 10000, 25000, 0, 0, 35000],
+    ["Kerala Spices Co", 0, 41250, 8000, 0, 49250],
+    ["Malabar Textiles", 5000, 12000, 0, 3000, 20000]
+  ]
+}

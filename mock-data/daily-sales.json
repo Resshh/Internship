@@ -1,0 +1,8 @@
+{
+  "columns": ["Date", "Region", "Orders", "Revenue"],
+  "rows": [
+    ["2026-11-02", "Kochi", 42, 185000],
+    ["2026-11-02", "Trivandrum", 31, 129500],
+    ["2026-11-02", "Kozhikode", 18, 74200]
+  ]
+}

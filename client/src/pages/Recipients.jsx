@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import './Recipients.css'
 
 const emptyForm = {
@@ -12,6 +13,8 @@ const emptyForm = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function Recipients() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -298,13 +301,15 @@ export default function Recipients() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="recipients-primary-btn"
-          onClick={openCreateForm}
-        >
-          <span>+</span> New List
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="recipients-primary-btn"
+            onClick={openCreateForm}
+          >
+            <span>+</span> New List
+          </button>
+        )}
       </div>
 
       {message && (
@@ -352,7 +357,7 @@ export default function Recipients() {
               ? 'Try searching with a different list name.'
               : 'Create your first recipient list to get started.'}
           </p>
-          {!search && (
+          {!search && isAdmin && (
             <button
               type="button"
               className="recipients-primary-btn"
@@ -399,7 +404,7 @@ export default function Recipients() {
                     </td>
 
                     <td>
-                      <div className="recipients-actions">
+                      {isAdmin && <div className="recipients-actions">
                         <button
                           type="button"
                           className="recipients-edit-btn"
@@ -415,7 +420,7 @@ export default function Recipients() {
                         >
                           Delete
                         </button>
-                      </div>
+                      </div>}
                     </td>
                   </tr>
                 ))}

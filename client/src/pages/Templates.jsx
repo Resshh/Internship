@@ -1,52 +1,26 @@
 
 import { useState, useRef, useEffect } from "react";
 import { api } from "../api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
-const initialTemplate = {
-  name: "Payment Reminder",
-  subject: "Payment Reminder - Invoice {{invoiceNumber}}",
-  body: `Hello {{customerName}},
+// Placeholders for report jobs (filled by the runner, not by query columns)
+const reportPlaceholders = ["JobName", "Date", "RowCount"];
 
-This is a friendly reminder that payment for your invoice {{invoiceNumber}} is due.
+function TemplateEditor({ onSave }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
-Invoice Details:
-Invoice Number: {{invoiceNumber}}
-Customer Name: {{customerName}}
-Amount Due: {{amount}}
-Due Date: {{dueDate}}
+  const [templateName, setTemplateName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
 
-Please make the payment at your earliest convenience.
-
-Thank you,
-Finance Team`,
-};
-
-// Temporary placeholders until Team 2 integration
-const placeholders = [
-  "customerName",
-  "invoiceNumber",
-  "amount",
-  "dueDate",
-];
-
-function renderPreview(text) {
-  return text;
-}
-
-function TemplateEditor({
-  onSave,
-  queryColumns = null,
-  queryId = "query123", // Temporary testing ID
-}) {
-  const [templateName, setTemplateName] = useState(
-    initialTemplate.name
-  );
-
-  const [subject, setSubject] = useState(
-    initialTemplate.subject
-  );
-
-  const [body, setBody] = useState(initialTemplate.body);
+  // Sample data: columns become placeholders, a chosen row fills the preview (FR-12)
+  const [queries, setQueries] = useState([]);
+  const [queryId, setQueryId] = useState("");
+  const [sample, setSample] = useState({ columns: [], rows: [] });
+  const [rowIndex, setRowIndex] = useState(0);
+  const [preview, setPreview] = useState({ subject: "", body: "", missing: [] });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +34,42 @@ function TemplateEditor({
 
   const textareaRef = useRef(null);
 
-  const displayedPlaceholders = queryColumns ?? placeholders;
+  const displayedPlaceholders = [...sample.columns, ...reportPlaceholders];
+
+  useEffect(() => {
+    api("/queries")
+      .then((data) => {
+        setQueries(data.queries || []);
+        if (data.queries?.length) setQueryId(data.queries[0]._id);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!queryId) return;
+    api(`/queries/${queryId}/sample`)
+      .then((data) => {
+        setSample({ columns: data.columns || [], rows: data.rows || [] });
+        setRowIndex(0);
+      })
+      .catch(() => setSample({ columns: [], rows: [] }));
+  }, [queryId]);
+
+  // Server fills the placeholders, so the preview matches the real email exactly.
+  useEffect(() => {
+    const row = {
+      JobName: templateName || "Job",
+      Date: new Date().toLocaleDateString("en-CA"),
+      RowCount: sample.rows.length,
+      ...sample.rows[rowIndex],
+    };
+    const timer = setTimeout(() => {
+      api("/templates/preview", { method: "POST", body: { subject, body, row } })
+        .then((data) => setPreview({ ...data.preview, missing: data.missing || [] }))
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [subject, body, rowIndex, sample, templateName]);
 
   // ADDED: Fetch saved templates
   // setState only inside callbacks, so it is safe to call from useEffect
@@ -253,12 +262,19 @@ function TemplateEditor({
   }
 
   // SAVE TEMPLATE TO BACKEND
-  async function handleSave() {
-    if (!queryId) {
-      setMessage("Query ID is required.");
-      return;
+  async function handleDelete() {
+    setConfirmDelete(false);
+    try {
+      await api(`/templates/${savedTemplateId}`, { method: "DELETE" });
+      handleNewTemplate();
+      setMessage("Template deleted.");
+      fetchTemplates();
+    } catch (error) {
+      setMessage(error.message);
     }
+  }
 
+  async function handleSave() {
     if (
       !templateName.trim() ||
       !subject.trim() ||
@@ -271,7 +287,6 @@ function TemplateEditor({
     try {
       setIsSaving(true);
       setMessage("");
-      setSavedTemplateId("");
 
       const updatedTemplate = {
         name: templateName.trim(),
@@ -279,15 +294,15 @@ function TemplateEditor({
         body,
       };
 
-      const data = await api("/templates", {
-        method: "POST",
+      // Selected template: update it. Otherwise create a new one.
+      const data = await api(savedTemplateId ? `/templates/${savedTemplateId}` : "/templates", {
+        method: savedTemplateId ? "PUT" : "POST",
         body: updatedTemplate,
       });
 
       setMessage("Template saved successfully!");
       setSavedTemplateId(data.template._id);
-
-      console.log("Template saved:", data.template);
+      setSelectedTemplateId(data.template._id);
 
       if (onSave) {
         onSave(data.template);
@@ -304,8 +319,6 @@ function TemplateEditor({
     }
   }
 
-  const subjectPreview = renderPreview(subject);
-  const bodyPreview = renderPreview(body);
 
   return (
     <div className="template-page">
@@ -336,23 +349,36 @@ function TemplateEditor({
               ))}
             </select>
 
-            {/* ADDED: New Template */}
-            <button
-              type="button"
-              className="new-template-button"
-              onClick={handleNewTemplate}
-            >
-              + New
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  className="new-template-button"
+                  onClick={handleNewTemplate}
+                >
+                  + New
+                </button>
 
-            <button
-              className="save-button"
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+                {savedTemplateId && (
+                  <button
+                    type="button"
+                    className="new-template-button"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Delete
+                  </button>
+                )}
+
+                <button
+                  className="save-button"
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Saving..." : "Save"}
+                </button>
+              </>
+            )}
 
           </div>
         </div>
@@ -464,30 +490,67 @@ function TemplateEditor({
 
           <div className="preview-heading">
             <h2>PREVIEW</h2>
+            <select
+              className="template-select"
+              aria-label="Sample data"
+              value={queryId}
+              onChange={(e) => setQueryId(e.target.value)}
+            >
+              {queries.map((q) => (
+                <option key={q._id} value={q._id}>{q.name}</option>
+              ))}
+            </select>
+            <select
+              className="template-select"
+              aria-label="Sample row"
+              value={rowIndex}
+              onChange={(e) => setRowIndex(Number(e.target.value))}
+            >
+              {sample.rows.map((row, i) => (
+                <option key={i} value={i}>Row {i + 1}: {String(Object.values(row)[0])}</option>
+              ))}
+            </select>
           </div>
 
           <div className="preview-content">
 
             <div className="preview-subject">
               <strong>Subject:</strong>
-              <p>{subjectPreview}</p>
+              <p>{preview.subject}</p>
             </div>
 
             <div className="preview-body">
               <strong>Body:</strong>
-              <pre>{bodyPreview}</pre>
+              <pre>{preview.body}</pre>
             </div>
 
+            {preview.missing.map((name) => (
+              <p key={name} className="notice notice-error">
+                Placeholder {`{{${name}}}`} has no value
+              </p>
+            ))}
+
             <p className="preview-note">
-              Preview of your email template. Placeholder
-              values will be filled when integrated with
-              the query data.
+              Filled with the selected sample row. Report jobs also get {"{{JobName}}"}, {"{{Date}}"} and {"{{RowCount}}"}.
             </p>
 
           </div>
         </section>
 
       </main>
+
+      {confirmDelete && (
+        <div className="dialog-overlay">
+          <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="template-delete-title">
+            <h2 id="template-delete-title">Delete template?</h2>
+            <p>Delete <strong>{templateName}</strong>? This cannot be undone.</p>
+            <div className="dialog-actions">
+              <button type="button" className="cancel-button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button type="button" className="confirm-delete-button" onClick={handleDelete}>Delete</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

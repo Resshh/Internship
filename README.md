@@ -37,6 +37,19 @@ npm run dev               # app on http://localhost:5173
 
 Run tests: `cd server && npm test`
 
+`npm run seed` also creates the 5 demo workflows (payment reminder, PO follow-up, low stock, daily sales
+report, weekly receivables report), their templates and 4 recipient lists. All 5 are enabled.
+If `SMTP_USER` is empty, emails are built but not sent (a warning is printed at startup).
+
+## Manual checks
+
+| Check | How |
+|---|---|
+| Dedupe | Run now on Payment Reminder twice: 2nd run sends 0, skipped 2 |
+| No email | INV-105 has no email: logged as failed "No email address" |
+| Retry | Set `SMTP_PORT=1`, Run now: each email retryCount 3, run failed, nothing left in sent_history |
+| Roles | Log in as `user@test.com`: no admin buttons; any write API returns 403 |
+
 ## Team rules
 
 - One branch per JIRA story: `FSD-12-login-screen`. Never commit straight to `main`.

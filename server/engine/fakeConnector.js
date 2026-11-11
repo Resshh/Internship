@@ -1,7 +1,3 @@
-// Stand-in for Batch 2's connector. Returns mock data in the common data format:
-//   { columns: [...], rows: [[...]], meta: { source, rowCount } }
-// The engine must ONLY get data through runQuery(queryId, params).
-// At integration, swap the import in the engine for Batch 2's connector. Nothing else changes.
 const path = require('path');
 
 // queryId -> mock file. These IDs are the ones seed.js puts in the queries collection.

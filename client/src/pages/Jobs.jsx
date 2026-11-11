@@ -1,60 +1,77 @@
-
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+// Screen 2 - Job dashboard (FR-03, FR-04)
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../api.js'
+
+const formatDate = (value) => (value ? new Date(value).toLocaleString() : '—')
 
 export default function Jobs() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const navigate = useNavigate()
 
+  const [jobs, setJobs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState(null)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [modeFilter, setModeFilter] = useState('all')
   const [selectedJob, setSelectedJob] = useState(null)
 
-  // Real records will be loaded from Pranav's Jobs API.
-  const jobs = []
+  function loadJobs() {
+    return api('/jobs')
+      .then((data) => setJobs(data.jobs || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadJobs()
+  }, [])
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      `${job.name} ${job.source || ''}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
-
-    const matchesStatus =
-      statusFilter === 'all' || job.status === statusFilter
-
-    const matchesMode =
-      modeFilter === 'all' || job.mode === modeFilter
-
+    const matchesSearch = `${job.name} ${job.queryName || ''}`.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'Active') === job.enabled
+    const matchesMode = modeFilter === 'all' || job.mode === modeFilter
     return matchesSearch && matchesStatus && matchesMode
   })
 
-  function handleRunNow(job) {
-    // Connect to the agreed run endpoint after API integration.
-    console.info('Run now requested for:', job.name)
+  // Runs an action for one job, shows its result, then refreshes the table.
+  async function act(job, action, success) {
+    setBusyId(job._id)
+    setError('')
+    setMessage('')
+    try {
+      const data = await action()
+      setMessage(success(data))
+      await loadJobs()
+    } catch (err) {
+      setError(`${job.name}: ${err.message}`)
+    } finally {
+      setBusyId(null)
+    }
   }
 
-  function handleToggleJob(job) {
-    // Connect to the agreed enable/disable endpoint after API integration.
-    console.info('Toggle requested for:', job.name)
-  }
+  const handleRunNow = (job) =>
+    act(job, () => api(`/jobs/${job._id}/run`, { method: 'POST' }), ({ run }) =>
+      `${job.name}: ${run.status} — sent ${run.emailsSent}, skipped ${run.skippedDuplicates}, failed ${run.failed}` +
+      (run.error ? ` (${run.error})` : ''))
 
-  function handleEdit(job) {
-    // Open the existing job configuration.
-    console.info('Edit requested for:', job.name)
-  }
+  const handleToggleJob = (job) =>
+    act(job, () => api(`/jobs/${job._id}/enabled`, { method: 'PATCH', body: { enabled: !job.enabled } }),
+      () => `${job.name} ${job.enabled ? 'disabled' : 'enabled'}`)
 
   function handleDeleteConfirm() {
-    // Connect to the agreed DELETE endpoint after API integration.
-    console.info('Delete requested for:', selectedJob?.name)
+    const job = selectedJob
     setSelectedJob(null)
+    act(job, () => api(`/jobs/${job._id}`, { method: 'DELETE' }), () => `${job.name} deleted`)
   }
 
   return (
     <section className="jobs-page">
-
-      {/* Page heading */}
       <div className="jobs-page-heading">
         <div>
           <h1>Jobs</h1>
@@ -69,9 +86,10 @@ export default function Jobs() {
         )}
       </div>
 
-      {/* Search and filters */}
-      <div className="jobs-toolbar">
+      {message && <p className="notice notice-success" role="status">{message}</p>}
+      {error && <p className="notice notice-error" role="alert">{error}</p>}
 
+      <div className="jobs-toolbar">
         <div className="jobs-search">
           <label htmlFor="job-search">Search jobs</label>
           <input
@@ -85,11 +103,7 @@ export default function Jobs() {
 
         <div className="jobs-filter">
           <label htmlFor="status-filter">Status</label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
+          <select id="status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="all">Status: All</option>
             <option value="Active">Active</option>
             <option value="Disabled">Disabled</option>
@@ -98,20 +112,14 @@ export default function Jobs() {
 
         <div className="jobs-filter">
           <label htmlFor="mode-filter">Mode</label>
-          <select
-            id="mode-filter"
-            value={modeFilter}
-            onChange={(event) => setModeFilter(event.target.value)}
-          >
+          <select id="mode-filter" value={modeFilter} onChange={(event) => setModeFilter(event.target.value)}>
             <option value="all">Mode: All</option>
-            <option value="Message">Message</option>
-            <option value="Report">Report</option>
+            <option value="message">Message</option>
+            <option value="report">Report</option>
           </select>
         </div>
-
       </div>
 
-      {/* Jobs table */}
       <div className="jobs-table-container">
         <table className="jobs-table">
           <thead>
@@ -122,15 +130,16 @@ export default function Jobs() {
               <th>Schedule</th>
               <th>Last run</th>
               <th>Status</th>
-              <th>Enabled</th>
-              <th>Actions</th>
+              {isAdmin && <th>Actions</th>}
             </tr>
           </thead>
 
           <tbody>
-            {filteredJobs.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan="7" className="jobs-table-empty">Loading jobs...</td></tr>
+            ) : filteredJobs.length === 0 ? (
               <tr>
-                <td colSpan="8" className="jobs-table-empty">
+                <td colSpan="7" className="jobs-table-empty">
                   {search || statusFilter !== 'all' || modeFilter !== 'all'
                     ? 'No jobs match your search or selected filters.'
                     : 'No notification jobs have been created yet.'}
@@ -140,60 +149,43 @@ export default function Jobs() {
               filteredJobs.map((job) => (
                 <tr key={job._id}>
                   <td>{job.name}</td>
-                  <td>{job.source || '—'}</td>
-                  <td>{job.mode}</td>
-                  <td>{job.schedule || '—'}</td>
-                  <td>{job.lastRun || '—'}</td>
-
+                  <td>{job.queryName ? `${job.connection} / ${job.queryName}` : '—'}</td>
+                  <td className="capitalize">{job.mode}</td>
+                  <td>{job.scheduleText || '—'}</td>
                   <td>
-                    <span className={`job-status ${job.status?.toLowerCase()}`}>
-                      {job.status}
+                    {job.lastRun ? (
+                      <>
+                        {formatDate(job.lastRun.startTime)}{' '}
+                        <span className={`run-status ${job.lastRun.status}`}>{job.lastRun.status}</span>
+                      </>
+                    ) : '—'}
+                  </td>
+                  <td>
+                    <span className={`job-status ${job.enabled ? 'active' : 'disabled'}`}>
+                      {job.enabled ? 'Active' : 'Disabled'}
                     </span>
                   </td>
 
-                  <td>
-                    {job.enabled ? 'Enabled' : 'Disabled'}
-                  </td>
-
-                  <td>
-                    {isAdmin && (
+                  {isAdmin && (
+                    <td>
                       <div className="job-actions">
-
-                        <button
-                          type="button"
-                          className="action-button"
-                          onClick={() => handleRunNow(job)}
-                        >
-                          Run now
+                        <button type="button" className="action-button" disabled={busyId === job._id}
+                          onClick={() => handleRunNow(job)}>
+                          {busyId === job._id ? 'Working...' : 'Run now'}
                         </button>
-
-                        <button
-                          type="button"
-                          className="action-button"
-                          onClick={() => handleEdit(job)}
-                        >
+                        <button type="button" className="action-button" onClick={() => navigate(`/jobs/${job._id}`)}>
                           Edit
                         </button>
-
-                        <button
-                          type="button"
-                          className="action-button"
-                          onClick={() => handleToggleJob(job)}
-                        >
+                        <button type="button" className="action-button" disabled={busyId === job._id}
+                          onClick={() => handleToggleJob(job)}>
                           {job.enabled ? 'Disable' : 'Enable'}
                         </button>
-
-                        <button
-                          type="button"
-                          className="action-button delete-action"
-                          onClick={() => setSelectedJob(job)}
-                        >
+                        <button type="button" className="action-button delete-action" onClick={() => setSelectedJob(job)}>
                           Delete
                         </button>
-
                       </div>
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -208,44 +200,22 @@ export default function Jobs() {
         </p>
       )}
 
-      {/* Delete confirmation dialog */}
       {selectedJob && (
         <div className="dialog-overlay">
-          <section
-            className="confirmation-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-title"
-          >
+          <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
             <h2 id="delete-title">Delete notification job?</h2>
-
             <p>
               Are you sure you want to delete
               <strong> {selectedJob.name}</strong>?
               This action cannot be undone.
             </p>
-
             <div className="dialog-actions">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => setSelectedJob(null)}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="confirm-delete-button"
-                onClick={handleDeleteConfirm}
-              >
-                Delete Job
-              </button>
+              <button type="button" className="cancel-button" onClick={() => setSelectedJob(null)}>Cancel</button>
+              <button type="button" className="confirm-delete-button" onClick={handleDeleteConfirm}>Delete Job</button>
             </div>
           </section>
         </div>
       )}
-
     </section>
   )
 }

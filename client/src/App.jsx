@@ -100,8 +100,6 @@ function DashboardLayout() {
 
           <div className="sidebar-divider" />
 
-          <p className="sidebar-section-label">Batch 2</p>
-
           <span className="sidebar-disabled">Connections</span>
           <span className="sidebar-disabled">Queries</span>
         </nav>

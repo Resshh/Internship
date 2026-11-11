@@ -1,5 +1,6 @@
 // Uses the shared `templates` collection (name, subject, body) from the Common Guide
-const { Template } = require("../models");
+const { Template, Job } = require("../models");
+const { render } = require("../engine/template");
 
 const DUPLICATE_NAME = 11000; // MongoDB duplicate key error (name is unique)
 
@@ -110,32 +111,37 @@ exports.updateTemplate = async (req, res) => {
   }
 };
 
-// Preview template
+// Preview template: POST /api/templates/preview { subject, body, row } (FR-12)
 exports.previewTemplate = async (req, res) => {
+  const { subject, body, row } = req.body || {};
+
+  if (typeof subject !== "string" || typeof body !== "string") {
+    return res.status(400).json({ message: "Subject and body are required" });
+  }
+
+  const filledSubject = render(subject, row || {});
+  const filledBody = render(body, row || {});
+
+  res.status(200).json({
+    preview: { subject: filledSubject.text, body: filledBody.text },
+    missing: [...new Set([...filledSubject.missing, ...filledBody.missing])],
+  });
+};
+
+// Delete template. Refused while a job still uses it.
+exports.deleteTemplate = async (req, res) => {
   try {
-    const { subject, body } = req.body;
-
-    if (
-      typeof subject !== "string" ||
-      typeof body !== "string"
-    ) {
-      return res.status(400).json({
-        message: "Subject and body are required",
-      });
+    const inUse = await Job.findOne({ templateId: req.params.id }, "name");
+    if (inUse) {
+      return res.status(409).json({ message: `Template is used by job "${inUse.name}"` });
     }
-
-    res.status(200).json({
-      message: "Preview generated successfully",
-      preview: {
-        subject,
-        body,
-      },
-    });
+    const template = await Template.findByIdAndDelete(req.params.id);
+    if (!template) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+    res.status(200).json({ message: "Template deleted" });
   } catch (error) {
-    res.status(500).json({
-      message: "Error generating preview",
-      error: error.message,
-    });
+    res.status(error.name === "CastError" ? 400 : 500).json({ message: "Error deleting template" });
   }
 };
 
